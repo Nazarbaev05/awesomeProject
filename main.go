@@ -2,10 +2,13 @@ package main
 
 import (
 	"database/sql"
-	_ "github.com/mattn/go-sqlite3"
+	"fmt"
+	//_ "github.com/mattn/go-sqlite3"
 	"html/template"
 	"log"
 	"net/http"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type User struct {
@@ -16,15 +19,15 @@ type User struct {
 }
 
 func main() {
-	// Set up database connection
+
+	http.Handle("/", http.FileServer(http.Dir("./static")))
 	db, err := sql.Open("sqlite3", "database.db")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
-	// Define routes and their handlers
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/main", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			err := r.ParseForm()
 			if err != nil {
@@ -35,7 +38,6 @@ func main() {
 			email := r.FormValue("email")
 			password := r.FormValue("password")
 
-			// Insert user data into database
 			result, err := db.Exec("INSERT INTO users (name, email, password) VALUES (?, ?, ?)", name, email, password)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -45,7 +47,6 @@ func main() {
 
 			data := map[string]interface{}{"id": id, "name": name, "email": email, "password": password}
 
-			// Redirect to profile page with user ID
 			t, _ := template.ParseFiles("profile.html")
 			t.Execute(w, data)
 			return
@@ -53,7 +54,6 @@ func main() {
 		t, _ := template.ParseFiles("index.html")
 		t.Execute(w, nil)
 	})
-
-	// Start server
+	fmt.Println("Server is running...")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
