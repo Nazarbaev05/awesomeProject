@@ -1,8 +1,8 @@
-package awesomeProject
+package main
 
 import (
 	"database/sql"
-	"fmt"
+	_ "github.com/mattn/go-sqlite3"
 	"html/template"
 	"log"
 	"net/http"
@@ -17,7 +17,7 @@ type User struct {
 
 func main() {
 	// Set up database connection
-	db, err := sql.Open("mysql", "user:password@tcp(127.0.0.1:3306)/database")
+	db, err := sql.Open("sqlite3", "database.db")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -25,16 +25,7 @@ func main() {
 
 	// Define routes and their handlers
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" {
-			// Serve registration form
-			tmpl, err := template.ParseFiles("index.html")
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			tmpl.Execute(w, nil)
-		} else if r.Method == "POST" {
-			// Parse form data
+		if r.Method == "POST" {
 			err := r.ParseForm()
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -52,30 +43,15 @@ func main() {
 			}
 			id, _ := result.LastInsertId()
 
+			data := map[string]interface{}{"id": id, "name": name, "email": email, "password": password}
+
 			// Redirect to profile page with user ID
-			http.Redirect(w, r, fmt.Sprintf("/profile/%d", id), http.StatusSeeOther)
-		}
-	})
-
-	http.HandleFunc("/profile/", func(w http.ResponseWriter, r *http.Request) {
-		// Get user ID from URL parameter
-		id := r.URL.Path[len("/profile/"):]
-
-		// Query database for user data
-		var user User
-		err := db.QueryRow("SELECT id, name, email, password FROM users WHERE id = ?", id).Scan(&user.ID, &user.Name, &user.Email, &user.Password)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			t, _ := template.ParseFiles("profile.html")
+			t.Execute(w, data)
 			return
 		}
-
-		// Render profile template with user data
-		tmpl, err := template.ParseFiles("profile.html")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		tmpl.Execute(w, user)
+		t, _ := template.ParseFiles("index.html")
+		t.Execute(w, nil)
 	})
 
 	// Start server
